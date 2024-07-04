@@ -1,0 +1,47 @@
+#!/bin/bash
+
+# Set variables
+PROJECT_ID="techlanders-internal"
+REGION="us-central1"
+CLUSTER_NAME="first-cluster"
+BUCKET_NAME="sandeep-dataproc"
+GCS_SCRIPT_PATH="gs://sandeep-dataproc/dataproc-bigquey.py"
+DATASET="dataset_demo"
+TABLE="customer_data"
+
+# Create the Dataproc cluster
+echo "Creating Dataproc cluster..."
+gcloud dataproc clusters create $CLUSTER_NAME \
+    --enable-component-gateway \
+    --region $REGION \
+    --no-address \
+    --single-node \
+    --master-machine-type n1-standard-2 \
+    --master-boot-disk-type pd-balanced \
+    --master-boot-disk-size 100 \
+    --image-version 2.2-debian12 \
+    --scopes 'https://www.googleapis.com/auth/cloud-platform' \
+    --project $PROJECT_ID
+
+# Check if cluster creation was successful
+if [ $? -eq 0 ]; then
+    echo "Cluster created successfully."
+
+    # Submit the Spark job
+    echo "Submitting Spark job..."
+    gcloud dataproc jobs submit pyspark $GCS_SCRIPT_PATH \
+        --cluster=$CLUSTER_NAME \
+        --region=$REGION \
+        --project=$PROJECT_ID 
+        
+
+    # Check if the job was successful
+    if [ $? -eq 0 ]; then
+        echo "Job completed successfully. Deleting cluster..."
+        gcloud dataproc clusters delete $CLUSTER_NAME --region $REGION --quiet
+    else
+        echo "Job failed. Cluster will not be deleted."
+    fi
+else
+    echo "Failed to create cluster."
+fi
